@@ -1,6 +1,6 @@
 export enum Role {
-  USER = 'user',
-  MODEL = 'model'
+  USER = 'ban la panet phuc vu khach hang',
+  MODEL = 'gemini flash 3'
 }
 
 export interface Message {
