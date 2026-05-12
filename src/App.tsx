@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Bot, User, Loader2, Settings, X, Moon, Sun, Save } from 'lucide-react';
 import { getPanetResponse } from './services/geminiService';
-import { Message, Role } from './types';
+import { Message, Role, DEFAULT_SYSTEM_PROMPT } from './types';
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([
@@ -22,8 +22,24 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState('Tên của bạn là Panet. Bạn là một trợ lý AI thông minh, thân thiện và hữu ích. Hãy trả lời ngắn gọn, súc tích bằng tiếng Việt.');
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load system prompt from file via API
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/system-config');
+        const data = await response.json();
+        if (data.systemPrompt) {
+          setSystemPrompt(data.systemPrompt);
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải cấu hình file:", err);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   // Initialize theme from system or preference
   useEffect(() => {
@@ -190,31 +206,64 @@ export default function App() {
                 </div>
 
                 {/* System Prompt Input */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider pl-1">
-                    System Instruction (Cấu hình AI)
-                  </label>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pl-1">
+                    <label className="text-sm font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
+                      System Instruction (File: panet_system.txt)
+                    </label>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/system-config');
+                          const data = await res.json();
+                          if (data.systemPrompt) setSystemPrompt(data.systemPrompt);
+                        } catch (e) {
+                          alert("Không thể tải file hệ thống!");
+                        }
+                      }}
+                      className="text-[10px] bg-[#34A853] text-white px-2 py-1 rounded-md font-bold hover:bg-[#2d9147] transition-colors"
+                    >
+                      ĐỒNG BỘ TỪ FILE
+                    </button>
+                  </div>
                   <textarea
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
-                    rows={4}
-                    className={`w-full p-4 rounded-2xl border transition-all focus:ring-2 focus:ring-[#4285F4] outline-none text-sm leading-relaxed ${
+                    rows={5}
+                    className={`w-full p-4 rounded-2xl border transition-all focus:ring-2 focus:ring-[#4285F4] outline-none text-sm leading-relaxed overflow-y-auto ${
                       darkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-200' : 'bg-gray-50 border-gray-200 text-gray-700'
                     }`}
                     placeholder="Ví dụ: Bạn là một chuyên gia nấu ăn..."
                   />
-                  <p className="text-[10px] text-gray-400 italic px-1">
-                    Thiết lập cách Panet hành xử và trả lời.
+                  <p className="text-[10px] text-gray-400 italic px-1 leading-relaxed">
+                    * Mẹo: Bạn có thể sửa trực tiếp ở đây hoặc sửa file <b>panet_system.txt</b> để thay đổi hành vi của Panet.
                   </p>
                 </div>
               </div>
 
               <button 
-                onClick={() => setShowSettings(false)}
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/save-system-config', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ systemPrompt })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      alert("Đã lưu cấu hình vào file panet_system.txt thành công!");
+                      setShowSettings(false);
+                    } else {
+                      alert("Lỗi: " + data.error);
+                    }
+                  } catch (e) {
+                    alert("Không thể kết nối đến máy chủ để lưu!");
+                  }
+                }}
                 className="w-full mt-8 py-4 bg-[#4285F4] text-white rounded-2xl font-bold shadow-lg shadow-[#4285F4]/30 hover:bg-[#3367D6] transition-all flex items-center justify-center gap-2"
               >
                 <Save size={20} />
-                Lưu cài đặt
+                Lưu cài đặt vào File
               </button>
             </motion.div>
           </motion.div>
